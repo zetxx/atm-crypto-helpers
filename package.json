@@ -1,0 +1,15 @@
+{
+  "name": "atm-crypto-helpers",
+  "author": {
+    "email": "zetxx@belogradchik.biz",
+    "name": "Elin Angelov",
+    "url": "https://github.com/zetxx/atm-crypto-helpers"
+  },
+  "dependencies": {
+    "node-cardcrypto": "^1.0.2"
+  },
+  "scripts": {
+    "unit-test": "echo 1"
+  },
+  "version": "0.0.0"
+}
