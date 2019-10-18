@@ -1,2 +1,2 @@
 # atm-crypto-helpers
-Crypto helper functions for devices
+Crypto helper functions for Atm/Pos devices
