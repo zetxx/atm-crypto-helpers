@@ -1,4 +1,4 @@
-const cardCrypto = require('node-cardCrypto');
+const cardCrypto = require('node-cardcrypto');
 const crypto = require('crypto');
 
 const des3EcbEncrypt = (key, data) => cardCrypto.des.ecb_encrypt(key, data);
@@ -338,13 +338,6 @@ const messageCoordinationNumberGen = (type) => {
     };
 };
 
-const throwOrReturn = ({result, error} = {}) => {
-    if (error) {
-        throw error;
-    }
-    return result;
-};
-
 const getTimeVariant = () => {
     const int64 = Date.now() + Math.floor(Math.random() * 1000);
     const b = Buffer.from((new Array(8)).fill(0));
@@ -371,7 +364,6 @@ const parseFitTable = (fit, list, collection = {}) => {
 module.exports = {
     decimalToKey,
     getPin,
-    throwOrReturn,
     getTimeVariant,
     messageCoordinationNumberGen,
     cardMasterKeyDerivation,
