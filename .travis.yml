@@ -4,14 +4,17 @@ node_js:
 
 script: echo "Running tests against $(node -v) ..."
 
+branches:
+  only:
+    - master
+
 jobs:
   include:
     - stage: test
       script: npm run unit-test
-    - stage: npm release
-      script: echo "Deploying to npm ..."
+    - stage: release
       deploy:
-        provider: npm
-        email: zetxx@belogradchik.biz
-        api_key: $NPM_API_KEY
-        on: master
+        provider: script
+        skip_cleanup: true
+        script:
+          - npx semantic-release
