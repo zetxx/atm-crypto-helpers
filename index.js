@@ -1,4 +1,4 @@
-const {aesEcbEncrypt, desEcbEncrypt, desCbcEncrypt, desCbcDecrypt} = require('./lib/crypt');
+const {aesEcbEncrypt, desEcbEncrypt, desCbcEncrypt, desCbcDecrypt, desEcbDecrypt} = require('./lib/crypt');
 const crypto = require('crypto');
 
 var fitParseRule = [
@@ -381,6 +381,7 @@ module.exports = {
         padString,
         getPinBlock,
         encodePinBlock,
-        desEcbEncrypt
+        desEcbEncrypt,
+        desEcbDecrypt
     }
 };
