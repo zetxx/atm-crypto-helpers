@@ -14,5 +14,9 @@
   "scripts": {
     "unit-test": "echo 1"
   },
-  "version": "0.0.3"
+  "version": "0.0.3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zetxx/atm-crypto-helpers.git"
+  }
 }
