@@ -6,10 +6,11 @@
     "url": "https://github.com/zetxx/atm-crypto-helpers"
   },
   "devDependencies": {
-    "semantic-release": "^15.0.0"
+    "semantic-release": "^15.0.0",
+    "tap": "*"
   },
   "scripts": {
-    "unit-test": "echo 1"
+    "unit-test": "./node_modules/tap/bin/run.js --no-cov ./tests/unit/cases"
   },
   "version": "0.0.3",
   "repository": {
