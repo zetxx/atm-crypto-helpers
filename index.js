@@ -1,10 +1,5 @@
-const cardCrypto = require('node-cardcrypto');
+const {aesEcbEncrypt, desEcbEncrypt, desCbcEncrypt, desCbcDecrypt} = require('./lib/crypt');
 const crypto = require('crypto');
-
-const des3EcbEncrypt = (key, data) => cardCrypto.des.ecb_encrypt(key, data);
-const des3CbcEncrypt = (key, data) => cardCrypto.des.cbc_encrypt(key, data);
-const des3CbcDecrypt = (key, data) => cardCrypto.des.cbc_decrypt(key, data);
-const aesEcbEncrypt = (key, data) => cardCrypto.aes.ecb_encrypt(key, data);
 
 var fitParseRule = [
     {name: 'piddx', len: 2},
@@ -87,7 +82,7 @@ const encodePinBlock = (pinBlock) => pinBlock
     .join('');
 
 const getPin = (pin, card, key) => encodePinBlock(
-    des3EcbEncrypt(key, getPinBlock(pin, card))
+    desEcbEncrypt(key, getPinBlock(pin, card))
 );
 
 const padString = (str, {size = 0, direction = 'left', symbol = '0'} = {}) => {
@@ -112,7 +107,7 @@ const parityFlipLessSignificantBit = (parity = 'odd') => {
     };
 };
 
-const des3Derive = (mkac, derived) => Buffer.from([des3EcbEncrypt(mkac, derived), des3EcbEncrypt(mkac, xor([derived, 'F'.repeat(16)]))].join(''), 'hex');
+const desDerive = (mkac, derived) => Buffer.from([desEcbEncrypt(mkac, derived), desEcbEncrypt(mkac, xor([derived, 'F'.repeat(16)]))].join(''), 'hex');
 
 const cardMasterKeyDerivation = ({mkac, pan, panSeqNum = '00'}, {emvVersion, type = 'a'} = {}) => {
     var derived = [];
@@ -120,7 +115,7 @@ const cardMasterKeyDerivation = ({mkac, pan, panSeqNum = '00'}, {emvVersion, typ
 
     switch (emvVersion) {
         case '4.0':
-            derived = Buffer.from(des3Derive(mkac, padString(panAndSeqNum, {size: 16})), 'hex')
+            derived = Buffer.from(desDerive(mkac, padString(panAndSeqNum, {size: 16})), 'hex')
                 .map(parityFlipLessSignificantBit());
             break;
         case '4.1':
@@ -145,7 +140,7 @@ const cardMasterKeyDerivation = ({mkac, pan, panSeqNum = '00'}, {emvVersion, typ
                             .join('') // join entire array
                             .slice(0, 16); // get first 16 chars(numbers);
 
-                        derived = des3Derive(mkac, derived)
+                        derived = desDerive(mkac, derived)
                             .map(parityFlipLessSignificantBit());
                     }
                     break;
@@ -208,8 +203,8 @@ const cardCommonSessionKeyDerivation = ({emvVersion, algorithmBlockSize, treeHei
                         padString('F0', {size: 16, direction: 'left', symbol: '0'})
                     ]);
                     derivedKeysRow[j] = [
-                        des3EcbEncrypt(derivedKeys[i - 1][Math.floor(j / branchFactor)], leftValue),
-                        des3EcbEncrypt(derivedKeys[i - 1][Math.floor(j / branchFactor)], rightValue)
+                        desEcbEncrypt(derivedKeys[i - 1][Math.floor(j / branchFactor)], leftValue),
+                        desEcbEncrypt(derivedKeys[i - 1][Math.floor(j / branchFactor)], rightValue)
                     ].join('').toUpperCase();
                 }
                 derivedKeys.push(derivedKeysRow);
@@ -224,8 +219,8 @@ const cardCommonSessionKeyDerivation = ({emvVersion, algorithmBlockSize, treeHei
             break;
         case '4.2':
             derived = Buffer.from([
-                des3EcbEncrypt(cardMasterKey, padString(atc + 'F0', {size: 16, direction: 'right', symbol: '0'})),
-                des3EcbEncrypt(cardMasterKey, padString(atc + '0F', {size: 16, direction: 'right', symbol: '0'}))
+                desEcbEncrypt(cardMasterKey, padString(atc + 'F0', {size: 16, direction: 'right', symbol: '0'})),
+                desEcbEncrypt(cardMasterKey, padString(atc + '0F', {size: 16, direction: 'right', symbol: '0'}))
             ]
                 .join('')
                 .toUpperCase(), 'hex')
@@ -239,7 +234,7 @@ const cardCommonSessionKeyDerivation = ({emvVersion, algorithmBlockSize, treeHei
                     padString(atc + 'F0', {size: algorithmBlockSize * 2, direction: 'right', symbol: '0'}),
                     padString(atc + '0F', {size: algorithmBlockSize * 2, direction: 'right', symbol: '0'})
                 ]
-                    .map((e) => ((algorithmBlockSize === 16 && aesEcbEncrypt(cardMasterKey, e)) || des3EcbEncrypt(cardMasterKey, e)))
+                    .map((e) => ((algorithmBlockSize === 16 && aesEcbEncrypt(cardMasterKey, e)) || desEcbEncrypt(cardMasterKey, e)))
                     .join('')
                     .slice(0, cardMasterKeyLength)
                     .toUpperCase(), 'hex');
@@ -304,8 +299,8 @@ const signData = (data, dataFormat = 'hex', {signEmvVersion, paddingMethod = '2'
     data = padString(data, {size: Math.ceil(dataLen / 16) * 16, direction: 'right', symbol: '0'});
     let keyUsed = breakString(key2, {size: key2.length / 2});
     var dataBlocks = ['0'.repeat(16)].concat(breakString(data));
-    var dataBlocksEncrypted = dataBlocks.reduce((a, c, idx) => ((idx && a.push(des3CbcEncrypt(keyUsed[0], xor([c, a[idx - 1]]))) && a) || a), ['0'.repeat(16)]);
-    return des3CbcEncrypt(keyUsed[0], des3CbcDecrypt(keyUsed[1], dataBlocksEncrypted.pop()));
+    var dataBlocksEncrypted = dataBlocks.reduce((a, c, idx) => ((idx && a.push(desCbcEncrypt(keyUsed[0], xor([c, a[idx - 1]]))) && a) || a), ['0'.repeat(16)]);
+    return desCbcEncrypt(keyUsed[0], desCbcDecrypt(keyUsed[1], dataBlocksEncrypted.pop()));
 };
 
 const deriveRuntimeCardKeys = ({masterKey: {mkac, pan, panSeqNum, mkEmvVersion, type} = {}, sessionKey: {atc, skEmvVersion, treeHeight, branchFactor, parity} = {}}) => {
@@ -381,11 +376,11 @@ module.exports = {
     },
     helpers: {
         xor,
-        des3Derive,
+        desDerive,
         parityFlipLessSignificantBit,
         padString,
         getPinBlock,
         encodePinBlock,
-        des3EcbEncrypt
+        desEcbEncrypt
     }
 };

@@ -5,9 +5,6 @@
     "name": "Elin Angelov",
     "url": "https://github.com/zetxx/atm-crypto-helpers"
   },
-  "dependencies": {
-    "node-cardcrypto": "^1.0.2"
-  },
   "devDependencies": {
     "semantic-release": "^15.0.0"
   },
