@@ -101,6 +101,8 @@ const parityFlipLessSignificantBit = (parity = 'odd') => {
             return (((((byte >> 7) & 1) + ((byte >> 6) & 1) + ((byte >> 5) & 1) + ((byte >> 4) & 1) + ((byte >> 3) & 1) + ((byte >> 2) & 1) + ((byte >> 1) & 1) + (byte & 1)) % 2 === 0) && byte ^ 1) || byte;
         } else if (parity === 'even') {
             return (((((byte >> 7) & 1) + ((byte >> 6) & 1) + ((byte >> 5) & 1) + ((byte >> 4) & 1) + ((byte >> 3) & 1) + ((byte >> 2) & 1) + ((byte >> 1) & 1) + (byte & 1)) % 2 === 1) && byte ^ 1) || byte;
+        } else if (parity === 'all') {
+            return ~byte;
         } else {
             return byte;
         }
@@ -148,6 +150,17 @@ const cardMasterKeyDerivation = ({mkac, pan, panSeqNum = '00'}, {emvVersion, typ
                     throw new Error('cardMasterKeyDerivation.unknownType');
             }
             break;
+        // case 'v1.6':
+        //     let keyUsed = breakString(mkac, {size: mkac.length / 2});
+        //     let data1 = Buffer.from(padString(panAndSeqNum, {size: 16, direction: 'left', symbol: '0'}), 'hex');
+        //     let data2 = Buffer.from(padString(panAndSeqNum, {size: 16, direction: 'left', symbol: '0'}), 'hex')
+        //         .map(parityFlipLessSignificantBit('all'));
+        //     derived = [
+        //         desEcbEncrypt(keyUsed[0], desEcbDecrypt(keyUsed[1], desEcbEncrypt(keyUsed[0], data1))),
+        //         desEcbEncrypt(keyUsed[0], desEcbDecrypt(keyUsed[1], desEcbEncrypt(keyUsed[0], data2)))
+        //     ]
+        //         .join('');
+        //     break;
         default:
             throw new Error('cardMasterKeyDerivation.unknownEmvVersion');
     }
@@ -156,7 +169,7 @@ const cardMasterKeyDerivation = ({mkac, pan, panSeqNum = '00'}, {emvVersion, typ
         .toUpperCase();
 };
 
-const cardCommonSessionKeyDerivation = ({emvVersion, algorithmBlockSize, treeHeight, branchFactor, initialisationVector = '00000000000000000000000000000000', atc, cardMasterKey, parity = 'none'}) => {
+const cardCommonSessionKeyDerivation = ({emvVersion, algorithmBlockSize = 8, treeHeight, branchFactor, initialisationVector = '00000000000000000000000000000000', atc, cardMasterKey, parity = 'none'}) => {
     // algorithm block size: in BYTES (AES - 128 bits = 16 bytes, DES - 64 bits = 8 bytes)
     // tree height, i.e. the number of levels of intermediate keys in the tree excluding the base level;
     // branch factor, i.e. the number of “child” keys that a “parent” key (which must be one level lower in the tree) derives
@@ -166,7 +179,7 @@ const cardCommonSessionKeyDerivation = ({emvVersion, algorithmBlockSize, treeHei
     var derived;
 
     switch (emvVersion) {
-        case '4.0': // EMV 2000
+        case '4.0': // EMV 2000 session key derivation
         case '4.1': // same algorithm as EMV2000
             var atcDec = parseInt(atc, 16);
             if (atcDec > Math.pow(branchFactor, treeHeight)) {
@@ -217,7 +230,8 @@ const cardCommonSessionKeyDerivation = ({emvVersion, algorithmBlockSize, treeHei
             ]), 'hex')
                 .map(parityFlipLessSignificantBit(parity));
             break;
-        case '4.2':
+        case '4.2': // common session key derivation
+        // case 'v1.6':
             derived = Buffer.from([
                 desEcbEncrypt(cardMasterKey, padString(atc + 'F0', {size: 16, direction: 'right', symbol: '0'})),
                 desEcbEncrypt(cardMasterKey, padString(atc + '0F', {size: 16, direction: 'right', symbol: '0'}))
@@ -226,7 +240,7 @@ const cardCommonSessionKeyDerivation = ({emvVersion, algorithmBlockSize, treeHei
                 .toUpperCase(), 'hex')
                 .map(parityFlipLessSignificantBit(parity));
             break;
-        case '4.3':
+        case '4.3': // common session key derivation
             if (keySize === (8 * algorithmBlockSize)) {
                 derived = aesEcbEncrypt(cardMasterKey, padString(atc, {size: 32, direction: 'right', symbol: '0'})).toUpperCase();
             } else if ((keySize > (8 * algorithmBlockSize)) && (keySize <= (16 * algorithmBlockSize)) && (algorithmBlockSize === 16 || algorithmBlockSize === 8)) {
@@ -278,8 +292,11 @@ const breakString = (str, {size = 2} = {}, out = []) => {
 // All the bytes that are required to be padded are padded with zero
 // padding method '2' - identical to ISO/IEC 9797-1 Padding Method 2
 // the first byte is a mandatory byte valued '80' (Hexadecimal) followed, if needed, by 0 to N-1 bytes set to '00'
-const signData = (data, dataFormat = 'hex', {signEmvVersion, paddingMethod = '2', masterKey, sessionKey, key}) => {
-    checkHex(data, {minSize: 16});
+const signData = (data, dataFormat = 'hex', macAlgorithm = '3', macLength = 8, {signEmvVersion, paddingMethod = '2', masterKey, sessionKey, key}) => {
+    if (macLength < 4 || macLength > 8) {
+        throw new Error('invalidMacLength');
+    }
+    dataFormat === 'hex' && checkHex(data, {minSize: 16});
     let key2;
     if (key) {
         key2 = key;
@@ -298,9 +315,44 @@ const signData = (data, dataFormat = 'hex', {signEmvVersion, paddingMethod = '2'
     let dataLen = data.length;
     data = padString(data, {size: Math.ceil(dataLen / 16) * 16, direction: 'right', symbol: '0'});
     let keyUsed = breakString(key2, {size: key2.length / 2});
-    var dataBlocks = ['0'.repeat(16)].concat(breakString(data));
-    var dataBlocksEncrypted = dataBlocks.reduce((a, c, idx) => ((idx && a.push(desCbcEncrypt(keyUsed[0], xor([c, a[idx - 1]]))) && a) || a), ['0'.repeat(16)]);
-    return desCbcEncrypt(keyUsed[0], desCbcDecrypt(keyUsed[1], dataBlocksEncrypted.pop()));
+    // TODO: check this !!!
+    // var dataBlocks = ['0'.repeat(16)].concat(breakString(data));
+    var dataBlocks = breakString(data);
+    var dataBlocksEncrypted = dataBlocks.reduce((a, c, idx) => ((idx && a.push(desCbcEncrypt(keyUsed[0], xor([c, a[idx - 1]]))) && a) || (a.push(desCbcEncrypt(keyUsed[0], c)) && a)), []);
+    switch (macAlgorithm) {
+        case '1':
+            return dataBlocksEncrypted.pop().slice(0, macLength * 2);
+        // case '2':
+        //     return;
+        case '3':
+            return desCbcEncrypt(keyUsed[0], desCbcDecrypt(keyUsed[1], dataBlocksEncrypted.pop())).slice(0, macLength * 2);
+        default:
+            throw new Error('badMacAlgorithm');
+    }
+};
+
+const checkDataSignature = (data, {checkEmvMethod, sessionKey}) => {
+    checkHex(data, {minSize: 16});
+    let clearData;
+
+    switch (checkEmvMethod) {
+        case '1':
+            if (!data.arqc || !data.arc) {
+                throw new Error('invalidArpcVerificationData');
+            }
+            clearData = xor([data.arqc, padString(data.arc, {size: 16, direction: 'right', symbol: '0'})]);
+            return desEcbEncrypt(sessionKey, clearData);
+        case '2':
+            if (!data.arqc || !data.csu) {
+                throw new Error('invalidArpcVerificationData');
+            }
+            clearData = data.arqc + data.csu + (data.pad || '');
+            // MAC algorithm: '3'
+            // MAC length: 4
+            return signData(clearData, 'hex', '3', 4, {paddingMethod: '2', sessionKey});
+        default:
+            throw new Error('invalidArpcMethod');
+    }
 };
 
 const deriveRuntimeCardKeys = ({masterKey: {mkac, pan, panSeqNum, mkEmvVersion, type} = {}, sessionKey: {atc, skEmvVersion, treeHeight, branchFactor, parity} = {}}) => {
@@ -364,6 +416,7 @@ module.exports = {
     cardMasterKeyDerivation,
     cardCommonSessionKeyDerivation,
     signData,
+    checkDataSignature,
     cryptogramVersionCalcTagValue,
     deriveRuntimeCardKeys,
     parseFitTable: (fit) => {
