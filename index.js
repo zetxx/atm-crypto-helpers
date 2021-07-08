@@ -1,7 +1,7 @@
 const {aesEcbEncrypt, desEcbEncrypt, desCbcEncrypt, desCbcDecrypt, desEcbDecrypt} = require('./lib/crypt');
 const crypto = require('crypto');
 
-var fitParseRule = [
+const fitParseRule = [
     {name: 'piddx', len: 2},
     {name: 'pfiid', len: 10},
     {name: 'pstdx', len: 2},
@@ -24,7 +24,7 @@ var fitParseRule = [
 ];
 
 const decimalToKey = (data, result = []) => {
-    var chunk = data.slice(0, 3);
+    let chunk = data.slice(0, 3);
     data = data.slice(3);
     if (chunk.length === 0) {
         return result.join('');
@@ -35,9 +35,9 @@ const decimalToKey = (data, result = []) => {
 };
 
 const xor = (items) => {
-    var a = Buffer.from(items.shift(), 'hex');
-    var b = Buffer.from(items.shift(), 'hex');
-    var c = Buffer.from(a.map((el, idx) => el ^ b[idx])).toString('hex').toUpperCase();
+    const a = Buffer.from(items.shift(), 'hex');
+    const b = Buffer.from(items.shift(), 'hex');
+    const c = Buffer.from(a.map((el, idx) => el ^ b[idx])).toString('hex').toUpperCase();
     if (items.length > 0) {
         items.unshift(c);
         return xor(items);
@@ -47,7 +47,7 @@ const xor = (items) => {
 
 const getPinBlock = (pin, card) => {
     // A 16-digit block is made from the:
-    let block1 = [
+    const block1 = [
         0, // digit 0
         pin.length, // the length of the PIN
         pin // the PIN
@@ -56,7 +56,7 @@ const getPinBlock = (pin, card) => {
         .slice(0, 16);
 
     // Another 16-digit block is made from four zeros and the 12 right-most digits of the account number
-    let block2 = [
+    const block2 = [
         '0000',
         card.slice(-13).slice(0, 12)
     ].join('');
@@ -86,7 +86,7 @@ const getPin = (pin, card, key) => encodePinBlock(
 );
 
 const padString = (str, {size = 0, direction = 'left', symbol = '0'} = {}) => {
-    var padString = symbol.repeat(size);
+    const padString = symbol.repeat(size);
 
     if (direction === 'left') {
         return `${padString}${str}`.slice(size * -1);
@@ -112,8 +112,8 @@ const parityFlipLessSignificantBit = (parity = 'odd') => {
 const desDerive = (mkac, derived) => Buffer.from([desEcbEncrypt(mkac, derived), desEcbEncrypt(mkac, xor([derived, 'F'.repeat(16)]))].join(''), 'hex');
 
 const cardMasterKeyDerivation = ({mkac, pan, panSeqNum = '00'}, {emvVersion, type = 'a'} = {}) => {
-    var derived = [];
-    var panAndSeqNum = `${pan}${panSeqNum}`;
+    let derived = [];
+    let panAndSeqNum = `${pan}${panSeqNum}`;
 
     switch (emvVersion) {
         case '4.0':
@@ -174,28 +174,28 @@ const cardCommonSessionKeyDerivation = ({emvVersion, algorithmBlockSize = 8, tre
     // tree height, i.e. the number of levels of intermediate keys in the tree excluding the base level;
     // branch factor, i.e. the number of “child” keys that a “parent” key (which must be one level lower in the tree) derives
 
-    var cardMasterKeyLength = cardMasterKey.length;
-    var keySize = cardMasterKeyLength * 4; // key size in BITS
-    var derived;
+    let cardMasterKeyLength = cardMasterKey.length;
+    let keySize = cardMasterKeyLength * 4; // key size in BITS
+    let derived;
 
     switch (emvVersion) {
         case '4.0': // EMV 2000 session key derivation
         case '4.1': // same algorithm as EMV2000
-            var atcDec = parseInt(atc, 16);
+            let atcDec = parseInt(atc, 16);
             if (atcDec > Math.pow(branchFactor, treeHeight)) {
                 throw new Error('cardCommonSessionKeyDerivation.atcAboveMaxValue');
             }
-            var ivLength = initialisationVector.length; // SHOULD BE 32 symbols (16 bytes) !!!
-            var derivedKeys = [[cardMasterKey]];
-            var derivedKeysRow = [];
-            var i, j; // counters
-            var jmodb;
-            var ivl; // initial vector left half
-            var ivr; // initial vector right half
-            var leftValue, rightValue;
-            var b2 = branchFactor * branchFactor;
+            let ivLength = initialisationVector.length; // SHOULD BE 32 symbols (16 bytes) !!!
+            let derivedKeys = [[cardMasterKey]];
+            let derivedKeysRow = [];
+            let i, j; // counters
+            let jmodb;
+            let ivl; // initial vector left half
+            let ivr; // initial vector right half
+            let leftValue, rightValue;
+            let b2 = branchFactor * branchFactor;
 
-            var maxj;
+            let maxj;
             for (i = 1; i <= treeHeight; i++) {
                 maxj = Math.pow(branchFactor, i) - 1;
                 if (atcDec < maxj) {
@@ -279,7 +279,7 @@ const checkHex = (hex, {minSize = 2, maxSize = Number.MAX_SAFE_INTEGER, size = 0
 };
 
 const breakString = (str, {size = 2} = {}, out = []) => {
-    var tmpStr = str.slice(0, 16);
+    let tmpStr = str.slice(0, 16);
     str = str.slice(16);
     out.push(tmpStr);
     if (str.length) {
@@ -317,8 +317,8 @@ const signData = (data, dataFormat = 'hex', macAlgorithm = '3', macLength = 8, {
     let keyUsed = breakString(key2, {size: key2.length / 2});
     // TODO: check this !!!
     // var dataBlocks = ['0'.repeat(16)].concat(breakString(data));
-    var dataBlocks = breakString(data);
-    var dataBlocksEncrypted = dataBlocks.reduce((a, c, idx) => ((idx && a.push(desCbcEncrypt(keyUsed[0], xor([c, a[idx - 1]]))) && a) || (a.push(desCbcEncrypt(keyUsed[0], c)) && a)), []);
+    let dataBlocks = breakString(data);
+    let dataBlocksEncrypted = dataBlocks.reduce((a, c, idx) => ((idx && a.push(desCbcEncrypt(keyUsed[0], xor([c, a[idx - 1]]))) && a) || (a.push(desCbcEncrypt(keyUsed[0], c)) && a)), []);
     switch (macAlgorithm) {
         case '1':
             return dataBlocksEncrypted.pop().slice(0, macLength * 2);
@@ -356,8 +356,8 @@ const checkDataSignature = (data, {checkEmvMethod, sessionKey}) => {
 };
 
 const deriveRuntimeCardKeys = ({masterKey: {mkac, pan, panSeqNum, mkEmvVersion, type} = {}, sessionKey: {atc, skEmvVersion, treeHeight, branchFactor, parity} = {}}) => {
-    var masterKey = cardMasterKeyDerivation({mkac, pan, panSeqNum}, {emvVersion: mkEmvVersion, type});
-    var sessionKey = skEmvVersion && cardCommonSessionKeyDerivation({atc, cardMasterKey: masterKey, emvVersion: skEmvVersion, treeHeight, branchFactor, parity});
+    let masterKey = cardMasterKeyDerivation({mkac, pan, panSeqNum}, {emvVersion: mkEmvVersion, type});
+    let sessionKey = skEmvVersion && cardCommonSessionKeyDerivation({atc, cardMasterKey: masterKey, emvVersion: skEmvVersion, treeHeight, branchFactor, parity});
     return {masterKey, sessionKey};
 };
 
@@ -368,7 +368,7 @@ const cryptogramVersionCalcTagValueRules = {
 };
 
 const cryptogramVersionCalcTagValue = (cryptogramVersion, tag, oldValue) => {
-    var value = oldValue;
+    let value = oldValue;
     if (cryptogramVersionCalcTagValueRules && cryptogramVersionCalcTagValueRules[cryptogramVersion] && cryptogramVersionCalcTagValueRules[cryptogramVersion][tag]) { // cryptogramVersion: vsdccv10
         value = cryptogramVersionCalcTagValueRules[cryptogramVersion][tag](oldValue);
     }
@@ -376,7 +376,7 @@ const cryptogramVersionCalcTagValue = (cryptogramVersion, tag, oldValue) => {
 };
 
 const messageCoordinationNumberGen = (type) => {
-    var messageCoordinationNumber = 49;
+    let messageCoordinationNumber = 49;
     return () => {
         if (messageCoordinationNumber > 63) {
             messageCoordinationNumber = 49;
