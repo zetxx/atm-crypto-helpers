@@ -6,7 +6,7 @@
     "url": "https://github.com/zetxx/atm-crypto-helpers"
   },
   "devDependencies": {
-    "semantic-release": "^17.2.3",
+    "semantic-release": "^19.0.3",
     "tap": "*"
   },
   "scripts": {
