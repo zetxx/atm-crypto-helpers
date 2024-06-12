@@ -50,3 +50,8 @@ Crypto helper functions for Atm/Pos devices
     - _type_ - _b_
     - _algorithmBlockSize_ - _8_
     - _macAlgorithm_ = _3_
+
+## TR31 key block decryption (keyblockDecrypt)
+
+Supports only algorithm B as defined in Ref 8 section 5.3.2.1
+ of TR31 keyblock specifications.

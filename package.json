@@ -5,6 +5,9 @@
     "name": "Elin Angelov",
     "url": "https://github.com/zetxx/atm-crypto-helpers"
   },
+  "dependencies": {
+    "ut-function.cmac": "0.1.0"
+  },
   "devDependencies": {
     "semantic-release": "^19.0.3",
     "tap": "*"
